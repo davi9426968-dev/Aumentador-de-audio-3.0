@@ -1,0 +1,167 @@
+<!doctype html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Volume Booster</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand">
+        <span class="logo" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M4 9.2v5.6h3.6L12.5 19V5L7.6 9.2H4z" /><path class="wave" d="M15.6 9a4.2 4.2 0 0 1 0 6" /><path class="wave" d="M18.2 6.4a7.8 7.8 0 0 1 0 11.2" /></svg>
+        </span>
+        <span class="brand-name">Volume <b>Booster</b></span>
+      </div>
+      <div class="top-actions">
+        <button id="openFloat" class="icon-btn" type="button" title="Janela flutuante sobre a página" aria-label="Janela flutuante sobre a página">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><rect x="11.5" y="11" width="7" height="6" rx="1.5" class="fill" /></svg>
+        </button>
+        <button id="openWindow" class="icon-btn" type="button" title="Abrir em janela separada" aria-label="Abrir em janela separada">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v4a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4" /></svg>
+        </button>
+      </div>
+    </header>
+
+    <section class="target">
+      <img id="tabIcon" class="favicon" alt="" />
+      <div class="target-text">
+        <strong id="tabTitle">—</strong>
+        <small id="tabState" class="state">desligado</small>
+      </div>
+      <input id="power" class="power" type="checkbox" role="switch" aria-label="Ligar o booster nesta aba" title="Ligar / desligar" />
+    </section>
+
+    <p id="message" class="message" role="status" hidden></p>
+
+    <main id="controls">
+      <section class="hero">
+        <div class="quick quick-left">
+          <button type="button" data-volume="100">100%</button>
+          <button type="button" data-volume="500">500%</button>
+          <button type="button" data-volume="1000">1000%</button>
+        </div>
+
+        <div class="dial-wrap">
+          <!-- Botão giratório: arraste em volta, role a roda do mouse ou use as setas. -->
+          <div
+            id="dial"
+            class="dial"
+            role="slider"
+            tabindex="0"
+            aria-label="Volume"
+            aria-valuemin="0"
+            aria-valuemax="10000"
+            aria-valuenow="100"
+            aria-valuetext="100%"
+            title="Arraste, role a roda do mouse ou use as setas · duplo clique volta a 100%"
+          >
+            <svg viewBox="0 0 200 200" aria-hidden="true">
+              <g id="meterRing" class="meter-ring"></g>
+              <g id="volumeRing" class="volume-ring"></g>
+            </svg>
+            <div id="knob" class="knob" aria-hidden="true"><span class="knob-notch"></span></div>
+            <div class="readout" aria-hidden="true">
+              <output id="volValue" class="big">100%</output>
+              <span id="gainDb" class="gain">0 dB</span>
+              <span id="meterText" class="meter-text">—</span>
+            </div>
+          </div>
+          <div id="scale" class="scale" aria-hidden="true"></div>
+        </div>
+
+        <div class="quick quick-right">
+          <button type="button" data-volume="2000">2000%</button>
+          <button type="button" data-volume="5000">5000%</button>
+          <button type="button" data-volume="10000">10000%</button>
+        </div>
+
+        <!-- Fonte de verdade do volume (posição 0–1000, escala em popup.js: posToPercent). -->
+        <input id="volume" class="sr-only" type="range" min="0" max="1000" step="1" value="50" tabindex="-1" aria-hidden="true" />
+      </section>
+
+      <div id="viz" class="viz" aria-hidden="true"></div>
+
+      <button id="maxExtreme" class="max-extreme" type="button" aria-pressed="false">
+        <svg class="bolt" viewBox="0 0 24 24" aria-hidden="true"><path d="M13.5 2 4 13.5h6.5L9.5 22 20 9.5h-6.6L13.5 2z" /></svg>
+        <span class="mx-text">
+          <span class="mx-title">MÁXIMO EXTREMO</span>
+          <span class="mx-sub mx-off">10000% + extremo + realce: o mais alto possível</span>
+          <span class="mx-sub mx-on">ATIVO · clique de novo para desfazer</span>
+        </span>
+      </button>
+    </main>
+
+    <nav class="tabs-nav" role="tablist" aria-label="Seções">
+      <button id="tab-fx" role="tab" type="button" aria-controls="panel-fx" aria-selected="true" data-panel="fx">Efeitos</button>
+      <button id="tab-eq" role="tab" type="button" aria-controls="panel-eq" aria-selected="false" data-panel="eq">Equalizador</button>
+      <button id="tab-tabs" role="tab" type="button" aria-controls="panel-tabs" aria-selected="false" data-panel="tabs">
+        Abas <span id="tabsCount" class="count"></span>
+      </button>
+    </nav>
+
+    <section id="panel-fx" class="panel lockable" role="tabpanel" aria-labelledby="tab-fx">
+      <div class="bass">
+        <div class="row-head">
+          <span class="label">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h2l2-6 3 12 3-9 2 5 2-2h4" /></svg>
+            Bass booster
+          </span>
+          <output id="bassValue" for="bass">0%</output>
+        </div>
+        <input id="bass" class="fill-range" type="range" min="0" max="100" step="5" value="0" aria-label="Reforço de graves" />
+      </div>
+
+      <label class="toggle extreme">
+        <input id="extreme" type="checkbox" role="switch" />
+        <span><strong>Modo extremo</strong><small>iguala tudo no volume máximo: falas, músicas e sons baixos</small></span>
+      </label>
+
+      <div class="toggles">
+        <label class="toggle">
+          <input id="playerMax" type="checkbox" role="switch" />
+          <span><strong>Player a 100%</strong><small>volume do site no máximo</small></span>
+        </label>
+        <label class="toggle">
+          <input id="leveler" type="checkbox" role="switch" />
+          <span><strong>Nivelar</strong><small>falas baixas mais altas</small></span>
+        </label>
+        <label class="toggle">
+          <input id="clean" type="checkbox" role="switch" />
+          <span><strong>Som limpo</strong><small>sem distorção</small></span>
+        </label>
+        <label class="toggle">
+          <input id="compat" type="checkbox" role="switch" />
+          <span><strong>Compatível</strong><small>com outro aumentador</small></span>
+        </label>
+      </div>
+
+      <details class="help">
+        <summary>Ainda está baixo?</summary>
+        <ol>
+          <li><strong>Volume do Windows em 100%</strong>: ícone de som na barra de tarefas.</li>
+          <li><strong>Chrome em 100% no Mixer de volume</strong>: botão direito no ícone de som → Mixer de volume.</li>
+          <li><strong>Use o MÁXIMO EXTREMO</strong>: é o que mais sobe sons que já são altos.</li>
+          <li>Com o anel mostrando <strong>NO MÁXIMO</strong>, o som já está no teto digital: mais % só distorce. Daí em diante o limite é o alto-falante; fone ou caixa de som externa ficam bem mais altos.</li>
+        </ol>
+        <p class="keys"><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> liga · <kbd>↑</kbd>/<kbd>↓</kbd> volume · <kbd>M</kbd> máximo extremo</p>
+      </details>
+    </section>
+
+    <section id="panel-eq" class="panel lockable" role="tabpanel" aria-labelledby="tab-eq" hidden>
+      <div class="eq-head">
+        <select id="preset" aria-label="Predefinição do equalizador"></select>
+        <button id="eqReset" class="small-btn" type="button">Zerar</button>
+      </div>
+      <div id="bands" class="bands"></div>
+    </section>
+
+    <section id="panel-tabs" class="panel" role="tabpanel" aria-labelledby="tab-tabs" hidden>
+      <ul id="tabList"></ul>
+    </section>
+
+    <script src="audio_engine.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

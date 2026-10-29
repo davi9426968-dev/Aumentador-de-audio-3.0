@@ -1,0 +1,59 @@
+{
+  "manifest_version": 3,
+  "name": "Volume Booster 10000%",
+  "version": "4.0.0",
+  "description": "Aumenta o volume de qualquer aba até 10000%, com modo extremo, medidor de saída, bass booster, equalizador, volume individual por aba e janela flutuante.",
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "activeTab", "scripting", "tabCapture", "offscreen"],
+  "host_permissions": ["<all_urls>"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["<all_urls>"],
+      "js": ["audio_engine.js", "content_page.js"],
+      "all_frames": true,
+      "match_about_blank": true,
+      "run_at": "document_idle"
+    }
+  ],
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Volume Booster",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "commands": {
+    "toggle-boost": {
+      "suggested_key": { "default": "Alt+Shift+B" },
+      "description": "Ligar/desligar o booster na aba atual"
+    },
+    "volume-up": {
+      "suggested_key": { "default": "Alt+Shift+Up" },
+      "description": "Aumentar o volume da aba atual (+10%; +25% por toque acima de 1000%)"
+    },
+    "volume-down": {
+      "suggested_key": { "default": "Alt+Shift+Down" },
+      "description": "Diminuir o volume da aba atual (−10%; −20% por toque acima de 1000%)"
+    },
+    "max-extreme": {
+      "suggested_key": { "default": "Alt+Shift+M" },
+      "description": "Máximo extremo: 10000% + modo extremo + realce (de novo para desfazer)"
+    }
+  },
+  "web_accessible_resources": [
+    {
+      "resources": ["popup.html"],
+      "matches": ["<all_urls>"]
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
+}

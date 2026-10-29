@@ -1,0 +1,1141 @@
+/* =====================================================================
+   Volume Booster — visual "equipamento de áudio": dial com anéis de LED,
+   visualizador de espectro e acentos em gradiente quente (rosa → laranja).
+   Claro e escuro pelos tokens abaixo; animações respeitam reduced-motion.
+   ===================================================================== */
+
+:root {
+  color-scheme: light dark;
+
+  --bg: #f3f3f9;
+  --bg-glow: rgb(255 46 99 / 0.12);
+  --bg-glow-2: rgb(255 138 61 / 0.1);
+  --surface: #ffffff;
+  --surface-2: #eeeef6;
+  --border: #e1e1ec;
+  --fg: #141522;
+  --muted: #5d6178;
+  --seg-off: #dadbe8;
+  --knob-hi: #ffffff;
+  --knob-lo: #dfe0ec;
+  --knob-edge: rgb(20 20 40 / 0.1);
+  --knob-shadow: 0 6px 16px rgb(20 20 50 / 0.18), 0 1px 0 rgb(255 255 255 / 0.9) inset;
+
+  --accent: #ff2e63;
+  --accent-2: #ff7a3d;
+  --accent-soft: rgb(255 46 99 / 0.1);
+  --on: #10b07c;
+  --on-glow: rgb(16 176 124 / 0.35);
+  --focus: #4f6bff;
+  --error: #d6204f;
+  --info-bg: #fff4d1;
+  --info-fg: #6b4e00;
+
+  --grad: linear-gradient(120deg, #ff2e63 0%, #ff6a3d 60%, #ffaa3d 100%);
+  --grad-hot: linear-gradient(115deg, #b52bff 0%, #ff2e63 42%, #ff7a3d 78%, #ffb23d 100%);
+  --grad-viz: linear-gradient(to top, #18d39a 0%, #b9e33d 38%, #ffb23d 62%, #ff2e63 100%);
+
+  --radius: 14px;
+  --shadow-card: 0 1px 2px rgb(20 20 50 / 0.06), 0 4px 14px rgb(20 20 50 / 0.05);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b0c13;
+    --bg-glow: rgb(255 46 99 / 0.2);
+    --bg-glow-2: rgb(181 43 255 / 0.12);
+    --surface: #14161f;
+    --surface-2: #1c1e2b;
+    --border: #262938;
+    --fg: #eef0f8;
+    --muted: #8e93ab;
+    --seg-off: #23263a;
+    --knob-hi: #2f3346;
+    --knob-lo: #11121a;
+    --knob-edge: rgb(255 255 255 / 0.06);
+    --knob-shadow: 0 8px 22px rgb(0 0 0 / 0.6), 0 1px 0 rgb(255 255 255 / 0.08) inset;
+
+    --accent: #ff3d6e;
+    --accent-2: #ff8a4d;
+    --accent-soft: rgb(255 61 110 / 0.14);
+    --on: #2ee59d;
+    --on-glow: rgb(46 229 157 / 0.45);
+    --focus: #8ea0ff;
+    --error: #ff6b8b;
+    --info-bg: #2a2009;
+    --info-fg: #ffd36b;
+
+    --shadow-card: 0 1px 0 rgb(255 255 255 / 0.03) inset, 0 6px 18px rgb(0 0 0 / 0.35);
+  }
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  color: var(--fg);
+  font: 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+html {
+  background: var(--bg);
+}
+
+body {
+  width: 360px;
+  min-height: 100%;
+  padding: 12px 12px 12px;
+  background:
+    radial-gradient(90% 46% at 50% 0%, var(--bg-glow), transparent 70%),
+    radial-gradient(60% 40% at 100% 30%, var(--bg-glow-2), transparent 70%),
+    var(--bg);
+}
+
+/* Janela flutuante e janela separada ocupam a largura disponível. */
+html[data-view="float"] body,
+html[data-view="window"] body {
+  width: auto;
+}
+
+/* Na janela flutuante, a moldura já tem título e a aba é a própria página. */
+html[data-view="float"] .top,
+html[data-view="float"] #tab-tabs,
+html[data-view="float"] #panel-tabs,
+html[data-view="float"] .favicon {
+  display: none;
+}
+
+html[data-view="float"] .tabs-nav {
+  grid-template-columns: 1fr 1fr;
+}
+
+html[data-view="window"] #openWindow {
+  display: none;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+button,
+select {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface-2);
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s,
+    transform 0.15s,
+    box-shadow 0.15s;
+}
+
+button:hover,
+select:hover {
+  border-color: var(--accent);
+}
+
+button:active {
+  transform: scale(0.97);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* ---------- Topo ---------- */
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.logo {
+  display: grid;
+  width: 28px;
+  height: 28px;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--grad);
+  box-shadow: 0 4px 14px rgb(255 46 99 / 0.4);
+}
+
+.logo svg {
+  width: 18px;
+  height: 18px;
+  fill: #fff;
+  stroke: #fff;
+  stroke-linecap: round;
+  stroke-width: 0;
+}
+
+.logo .wave {
+  fill: none;
+  stroke-width: 2;
+}
+
+.brand-name {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+}
+
+.brand-name b {
+  background: var(--grad);
+  background-clip: text;
+  color: transparent;
+  font-weight: 800;
+}
+
+.top-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.icon-btn {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  place-items: center;
+  border-radius: 9px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.icon-btn svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2;
+}
+
+.icon-btn svg .fill {
+  fill: currentColor;
+  stroke: none;
+}
+
+/* ---------- Aba alvo + botão liga/desliga ---------- */
+
+.target {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 8px 8px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+}
+
+.favicon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+.target-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.target-text strong {
+  overflow: hidden;
+  font-size: 12.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.state {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.state::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--seg-off);
+}
+
+.state.on {
+  color: var(--on);
+  font-weight: 650;
+}
+
+.state.on::before {
+  background: var(--on);
+  box-shadow: 0 0 0 0 var(--on-glow);
+  animation: pulse 1.8s ease-out infinite;
+}
+
+/* Botão redondo de energia (checkbox nativo: teclado e leitor de tela continuam funcionando). */
+.power {
+  position: relative;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  margin: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--surface-2);
+  appearance: none;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    box-shadow 0.25s,
+    transform 0.15s;
+}
+
+.power::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  background: var(--muted);
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.6' stroke-linecap='round'%3E%3Cpath d='M12 3v8'/%3E%3Cpath d='M6.6 6.6a8 8 0 1 0 10.8 0'/%3E%3C/svg%3E")
+    center / contain no-repeat;
+}
+
+.power:hover {
+  transform: scale(1.05);
+}
+
+.power:checked {
+  border-color: transparent;
+  background: var(--on);
+  box-shadow:
+    0 0 0 4px var(--on-glow),
+    0 0 22px var(--on-glow);
+}
+
+.power:checked::before {
+  background: #fff;
+}
+
+.power:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.message {
+  margin: 8px 0 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--info-bg);
+  color: var(--info-fg);
+  font-size: 11.5px;
+}
+
+.message.error {
+  color: var(--error);
+}
+
+/* ---------- Controles (desligado = esmaecido; página protegida = bloqueado) ---------- */
+
+#controls,
+.lockable {
+  transition: opacity 0.2s;
+}
+
+#controls.off {
+  opacity: 0.72;
+}
+
+#controls.off:hover,
+#controls.off:focus-within {
+  opacity: 1;
+}
+
+.disabled {
+  opacity: 0.4 !important;
+  pointer-events: none;
+}
+
+/* ---------- Hero: dial + atalhos ---------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  margin-top: 6px;
+}
+
+.quick {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.quick-left {
+  align-items: flex-start;
+}
+
+.quick-right {
+  align-items: flex-end;
+}
+
+.quick button {
+  width: 66px;
+  padding: 6px 0;
+  border-radius: 999px;
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  font-size: 11.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+}
+
+.quick button[aria-pressed="true"] {
+  border-color: transparent;
+  background: var(--grad);
+  box-shadow: 0 4px 14px rgb(255 46 99 / 0.4);
+  color: #fff;
+}
+
+.dial-wrap {
+  position: relative;
+  width: 184px;
+  height: 184px;
+}
+
+.dial {
+  position: absolute;
+  inset: 14px;
+  border-radius: 50%;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+}
+
+.dial.dragging {
+  cursor: grabbing;
+}
+
+.dial:focus-visible {
+  outline-offset: 6px;
+}
+
+.dial svg {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+}
+
+.dial svg line {
+  stroke-linecap: round;
+  transition:
+    stroke 0.12s,
+    opacity 0.12s;
+}
+
+.volume-ring line {
+  stroke-width: 6;
+  stroke: var(--seg-off);
+}
+
+.volume-ring line.lit {
+  filter: drop-shadow(0 0 3px var(--c));
+  stroke: var(--c);
+}
+
+.meter-ring line {
+  stroke-width: 3.2;
+  stroke: var(--seg-off);
+  opacity: 0.7;
+}
+
+.meter-ring line.lit {
+  opacity: 1;
+  stroke: var(--c);
+}
+
+.knob {
+  position: absolute;
+  inset: 30px;
+  border: 1px solid var(--knob-edge);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 28%, var(--knob-hi), var(--knob-lo) 78%);
+  box-shadow: var(--knob-shadow);
+  transform: rotate(var(--angle, -135deg));
+  transition: transform 0.12s ease-out;
+}
+
+.dial.dragging .knob {
+  transition: none;
+}
+
+/* Indicador de posição: um ponto na borda do botão (um traço perto do número
+   parecia um sinal de menos: "−350%"). */
+.knob-notch {
+  position: absolute;
+  top: 5px;
+  left: 50%;
+  width: 7px;
+  height: 7px;
+  margin-left: -3.5px;
+  border-radius: 50%;
+  background: var(--grad);
+  box-shadow: 0 0 8px rgb(255 46 99 / 0.8);
+}
+
+.readout {
+  position: absolute;
+  inset: 30px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  pointer-events: none;
+}
+
+.big {
+  background: var(--grad);
+  background-clip: text;
+  color: transparent;
+  font-size: 22px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 850;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+}
+
+.big.unity {
+  background: none;
+  color: var(--fg);
+}
+
+.gain {
+  color: var(--muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+}
+
+.meter-text {
+  margin-top: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  color: var(--muted);
+  font-size: 8.5px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+  letter-spacing: 0.04em;
+}
+
+.meter-text.max {
+  background: var(--accent);
+  box-shadow: 0 0 10px rgb(255 46 99 / 0.6);
+  color: #fff;
+  animation: blink 1s ease-in-out infinite alternate;
+}
+
+/* Rótulos da escala em volta do dial (posição calculada em popup.js). */
+.scale span {
+  position: absolute;
+  color: var(--muted);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ---------- Visualizador de espectro ---------- */
+
+.viz {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 30px;
+  margin: 2px 4px 0;
+}
+
+.viz span {
+  flex: 1;
+  height: 100%;
+  border-radius: 3px 3px 1px 1px;
+  background: var(--grad-viz);
+  opacity: 0.9;
+  transform: scaleY(var(--v, 0.06));
+  transform-origin: bottom;
+  transition: transform 0.11s linear;
+}
+
+.viz.idle span {
+  opacity: 0.28;
+}
+
+/* ---------- MÁXIMO EXTREMO ---------- */
+
+.max-extreme {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 8px 12px;
+  overflow: hidden;
+  border: 1.5px solid transparent;
+  border-radius: 12px;
+  background:
+    linear-gradient(var(--surface), var(--surface)) padding-box,
+    var(--grad-hot) border-box;
+  box-shadow: var(--shadow-card);
+}
+
+.max-extreme:hover {
+  border-color: transparent;
+  box-shadow: 0 6px 20px rgb(255 46 99 / 0.25);
+}
+
+.max-extreme .bolt {
+  width: 22px;
+  height: 22px;
+  flex: none;
+  fill: var(--accent);
+  filter: drop-shadow(0 0 6px rgb(255 46 99 / 0.5));
+}
+
+.mx-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1.2;
+}
+
+.mx-title {
+  background: var(--grad-hot);
+  background-clip: text;
+  color: transparent;
+  font-size: 13.5px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.mx-sub {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.mx-on,
+.max-extreme[aria-pressed="true"] .mx-off {
+  display: none;
+}
+
+.max-extreme[aria-pressed="true"] .mx-on {
+  display: inline;
+}
+
+/* Brilho que atravessa o botão de tempos em tempos. */
+.max-extreme::after {
+  content: "";
+  position: absolute;
+  inset: -40% auto -40% -30%;
+  width: 26%;
+  background: linear-gradient(100deg, transparent, rgb(255 255 255 / 0.45), transparent);
+  transform: skewX(-18deg) translateX(-120%);
+  animation: shine 3.6s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.max-extreme[aria-pressed="true"] {
+  /* Gradiente espelhado: ao deslizar, emenda sem "degrau". */
+  background: linear-gradient(110deg, #b52bff, #ff2e63, #ff7a3d, #ffb23d, #ff7a3d, #ff2e63, #b52bff) border-box;
+  background-size: 200% 100%;
+  animation:
+    flow 3s linear infinite,
+    glow 1.4s ease-in-out infinite alternate;
+}
+
+.max-extreme[aria-pressed="true"] .mx-title,
+.max-extreme[aria-pressed="true"] .mx-sub {
+  background: none;
+  color: #fff;
+}
+
+.max-extreme[aria-pressed="true"] .bolt {
+  fill: #fff;
+  filter: drop-shadow(0 0 6px rgb(255 255 255 / 0.8));
+}
+
+/* ---------- Abas de navegação ---------- */
+
+.tabs-nav {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 3px;
+  margin-top: 12px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface-2);
+}
+
+.tabs-nav button {
+  padding: 6px 4px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.tabs-nav button:hover {
+  color: var(--fg);
+}
+
+.tabs-nav button[aria-selected="true"] {
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  color: var(--fg);
+}
+
+.count {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+.panel {
+  margin-top: 8px;
+  padding: 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  animation: rise 0.18s ease-out;
+}
+
+/* No popup do ícone o Chrome limita a altura a 600 px: a página tem 600 px
+   fixos e o painel de baixo ocupa o espaço que sobra, rolando por dentro. */
+html[data-view="popup"] body {
+  display: flex;
+  flex-direction: column;
+  height: 600px;
+}
+
+html[data-view="popup"] body > * {
+  flex: none;
+}
+
+html[data-view="popup"] .panel {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--seg-off) transparent;
+}
+
+.panel[hidden] {
+  display: none;
+}
+
+/* ---------- Efeitos ---------- */
+
+.row-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 6px;
+}
+
+.label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 650;
+}
+
+.label svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: var(--accent);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 2.2;
+}
+
+output {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+}
+
+/* Slider com preenchimento em gradiente (--fill vem do popup.js). */
+.fill-range {
+  width: 100%;
+  height: 6px;
+  margin: 6px 0;
+  border-radius: 3px;
+  background:
+    linear-gradient(90deg, var(--accent-2), var(--accent)) 0 / var(--fill, 0%) 100% no-repeat,
+    var(--seg-off);
+  appearance: none;
+  cursor: pointer;
+}
+
+.fill-range::-webkit-slider-thumb {
+  width: 18px;
+  height: 18px;
+  border: 3px solid var(--accent);
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 0 0 4px var(--accent-soft);
+  appearance: none;
+  transition: transform 0.12s;
+}
+
+.fill-range:active::-webkit-slider-thumb {
+  transform: scale(1.15);
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px 9px;
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  background: var(--surface);
+  cursor: pointer;
+  transition:
+    border-color 0.15s,
+    background 0.15s;
+}
+
+.toggle:hover {
+  border-color: var(--accent);
+}
+
+.toggle:has(input:checked) {
+  border-color: rgb(255 46 99 / 0.45);
+  background: var(--accent-soft);
+}
+
+.toggle span {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.25;
+}
+
+.toggle strong {
+  font-size: 12px;
+}
+
+.toggle small {
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+.toggle.extreme {
+  margin-top: 12px;
+}
+
+.toggle.extreme strong {
+  background: var(--grad-hot);
+  background-clip: text;
+  color: transparent;
+}
+
+.toggles {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+  margin-top: 6px;
+}
+
+/* Interruptor sobre o checkbox nativo (continua acessível). */
+.toggle input[role="switch"] {
+  position: relative;
+  flex: none;
+  width: 34px;
+  height: 20px;
+  margin: 0;
+  border-radius: 10px;
+  background: var(--seg-off);
+  appearance: none;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.toggle input[role="switch"]::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgb(0 0 0 / 0.3);
+  transition: transform 0.2s cubic-bezier(0.3, 1.4, 0.5, 1);
+}
+
+.toggle input[role="switch"]:checked {
+  background: var(--grad);
+}
+
+.toggle input[role="switch"]:checked::after {
+  transform: translateX(14px);
+}
+
+.help {
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+.help summary {
+  color: var(--accent);
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.help ol {
+  margin: 6px 0 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.help li + li {
+  margin-top: 4px;
+}
+
+.help strong {
+  color: var(--fg);
+}
+
+.keys {
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 10.5px;
+}
+
+kbd {
+  padding: 0 4px;
+  border: 1px solid var(--border);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  background: var(--surface-2);
+  font: 600 10px/1.5 inherit;
+}
+
+/* ---------- Equalizador ---------- */
+
+.eq-head {
+  display: flex;
+  gap: 6px;
+}
+
+.eq-head select {
+  flex: 1;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.small-btn {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+.bands {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  margin-top: 8px;
+  padding: 6px 0 2px;
+  border-radius: 10px;
+  background:
+    linear-gradient(transparent calc(50% - 0.5px), var(--border) calc(50% - 0.5px), var(--border) calc(50% + 0.5px), transparent 0),
+    var(--surface-2);
+}
+
+.band {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+
+.band input {
+  /* Slider vertical nativo (Chrome/Edge 124+): o topo é o valor máximo. */
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 20px;
+  height: 92px;
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.band .db,
+.band .freq {
+  color: var(--muted);
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.band .db.on {
+  color: var(--accent);
+  font-weight: 750;
+}
+
+/* ---------- Abas com som ---------- */
+
+#tabList {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tab-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 9px;
+  border-color: var(--border);
+  border-radius: 10px;
+  background: var(--surface);
+  text-align: left;
+}
+
+.tab-item.current {
+  border-color: rgb(255 46 99 / 0.45);
+  background: var(--accent-soft);
+}
+
+.tab-item .favicon {
+  width: 16px;
+  height: 16px;
+}
+
+.tab-item .name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pill {
+  flex: none;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--surface-2);
+  color: var(--muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  font-weight: 750;
+}
+
+.pill.on {
+  background: var(--grad);
+  color: #fff;
+}
+
+.empty {
+  padding: 14px 4px;
+  color: var(--muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ---------- Animações ---------- */
+
+@keyframes pulse {
+  0% {
+    box-shadow: 0 0 0 0 var(--on-glow);
+  }
+  100% {
+    box-shadow: 0 0 0 7px transparent;
+  }
+}
+
+@keyframes blink {
+  from {
+    opacity: 0.75;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes shine {
+  0%,
+  55% {
+    transform: skewX(-18deg) translateX(-120%);
+  }
+  100% {
+    transform: skewX(-18deg) translateX(560%);
+  }
+}
+
+@keyframes flow {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 4px 14px rgb(255 46 99 / 0.35);
+  }
+  to {
+    box-shadow:
+      0 6px 26px rgb(255 46 99 / 0.6),
+      0 0 40px rgb(181 43 255 / 0.35);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+}
